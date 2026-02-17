@@ -139,26 +139,9 @@ export default function Login() {
             </div>
             <div className="relative flex justify-center text-xs uppercase tracking-widest text-gray-500">
               <span className="bg-[#080a0f] px-3">
-                Or continue with demo
+                Or
               </span>
             </div>
-          </div>
-
-          {/* Demo Buttons */}
-          <div className="grid grid-cols-2 gap-4">
-            <button className="border border-gray-800 bg-[#11141b]/50 rounded-xl py-5 hover:bg-[#11141b] transition">
-              <p className="text-white font-semibold">Student</p>
-              <p className="text-xs text-gray-500 mt-1">
-                View Dashboard
-              </p>
-            </button>
-
-            <button className="border border-gray-800 bg-[#11141b]/50 rounded-xl py-5 hover:bg-[#11141b] transition">
-              <p className="text-white font-semibold">Admin</p>
-              <p className="text-xs text-gray-500 mt-1">
-                View Analytics
-              </p>
-            </button>
           </div>
 
           <p className="mt-10 text-center text-sm text-gray-500">
