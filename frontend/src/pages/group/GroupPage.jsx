@@ -1,9 +1,16 @@
-import React, { useEffect, useState } from "react";
+import React, { useContext, useEffect, useLayoutEffect, useRef, useState } from "react";
 import { MessageCircle, Users, Calendar } from "lucide-react";
-import { useLocation } from "react-router-dom";
+import { useLocation, useParams } from "react-router-dom";
 import Sidebar from "../../components/Sidebar";
 import axios from "axios";
 import { enqueueSnackbar } from "notistack";
+
+import { io } from "socket.io-client";
+import { AuthContext } from "../../contexts/AuthContext";
+
+const socket = io(import.meta.env.VITE_BACKEND_URL, {
+  withCredentials: true,
+});
 
 const BACKEND = import.meta.env.VITE_BACKEND_URL;
 
@@ -21,22 +28,30 @@ const Skeleton = ({ className }) => {
 
 export default function StudyGroupPage() {
   const location = useLocation();
-  const { groupId } = location.state || {};
+  const { user } = useContext(AuthContext)
+  const { groupId } = useParams()
+  console.log(groupId)
 
   const [group, setGroup] = useState(null);
   const [loading, setLoading] = useState(true);
 
+  const [messages, setMessages] = useState([]);
+  const chatContainerRef = useRef(null);
+  const [newMessage, setNewMessage] = useState("");
+
+
   useEffect(() => {
     if (!groupId) return;
-
+    console.log("group calling")
     axios
-      .get(`${BACKEND}/group/${groupId}`, { withCredentials: true })
+      .get(`${BACKEND}/groups/${groupId}`, { withCredentials: true })
       .then((res) => {
         // Small delay for smooth UX
         setTimeout(() => {
           setGroup(res.data.group);
+          console.log(res.data.group);
           setLoading(false);
-        }, 10000);
+        }, 400);
       })
       .catch(() => {
         setLoading(false)
@@ -48,6 +63,45 @@ export default function StudyGroupPage() {
         })
       });
   }, [groupId]);
+
+  useLayoutEffect(() => {
+    const container = chatContainerRef.current;
+    if (!container) return;
+
+    container.scrollTop = container.scrollHeight;
+  }, [messages.length]);
+
+  useEffect(() => {
+    if (!groupId) return;
+
+    socket.emit("joinGroup", { groupId });
+
+    axios
+      .get(`${BACKEND}/groups/${groupId}/messages`, {
+        withCredentials: true,
+      })
+      .then((res) => setMessages(res.data));
+
+    socket.on("receiveMessage", (message) => {
+      setMessages((prev) => [...prev, message]);
+    });
+
+    return () => {
+      socket.off("receiveMessage");
+    };
+  }, [groupId]);
+
+  const sendMessage = () => {
+    if (!newMessage.trim()) return;
+    console.log(user)
+    socket.emit("sendMessage", {
+      groupId,
+      userId: user,
+      text: newMessage,
+    });
+
+    setNewMessage("");
+  };
 
   return (
     <div className="min-h-screen bg-slate-950 text-white flex">
@@ -63,7 +117,7 @@ export default function StudyGroupPage() {
                 {loading ? (
                   <Skeleton className="h-10 w-72" />
                 ) : (
-                  group?.name
+                  group?.groupName
                 )}
               </h2>
 
@@ -92,10 +146,6 @@ export default function StudyGroupPage() {
                     <div className="flex items-center gap-2">
                       <Users size={16} />
                       {group?.members?.length || 0} members
-                    </div>
-                    <div className="flex items-center gap-2">
-                      <Calendar size={16} />
-                      {group?.schedule || "Schedule not set"}
                     </div>
                   </>
                 )}
@@ -128,80 +178,110 @@ export default function StudyGroupPage() {
           {/* ================= LEFT ================= */}
           <div className="lg:col-span-2 space-y-8">
             {/* -------- Pinned Messages -------- */}
+            {/* <section className="bg-slate-900 border border-slate-800 rounded-2xl p-6 shadow-lg"> */}
+            {/*   <h3 className="text-xl font-semibold mb-6"> */}
+            {/*     Pinned Messages */}
+            {/*   </h3> */}
+            {/**/}
+            {/*   <div className="space-y-4"> */}
+            {/*     {loading */}
+            {/*       ? Array.from({ length: 2 }).map((_, i) => ( */}
+            {/*         <div */}
+            {/*           key={i} */}
+            {/*           className="border border-slate-700 rounded-xl p-4 bg-slate-800" */}
+            {/*         > */}
+            {/*           <Skeleton className="h-4 w-full mb-2" /> */}
+            {/*           <Skeleton className="h-4 w-5/6 mb-2" /> */}
+            {/*           <Skeleton className="h-3 w-32" /> */}
+            {/*         </div> */}
+            {/*       )) */}
+            {/*       : group?.pinnedMessages?.length > 0 */}
+            {/*         ? group.pinnedMessages.map((msg) => ( */}
+            {/*           <div */}
+            {/*             key={msg._id} */}
+            {/*             className="border border-amber-500/40 rounded-xl p-4 bg-slate-800" */}
+            {/*           > */}
+            {/*             <p>{msg.text}</p> */}
+            {/*             <p className="text-sm text-slate-400 mt-2"> */}
+            {/*               {msg.author} • {msg.time} */}
+            {/*             </p> */}
+            {/*           </div> */}
+            {/*         )) */}
+            {/*         : ( */}
+            {/*           <p className="text-slate-400">No pinned messages</p> */}
+            {/*         )} */}
+            {/*   </div> */}
+            {/* </section> */}
+
+            {/* ================= GROUP CHAT ================= */}
             <section className="bg-slate-900 border border-slate-800 rounded-2xl p-6 shadow-lg">
               <h3 className="text-xl font-semibold mb-6">
-                Pinned Messages
+                Group Chat
               </h3>
 
-              <div className="space-y-4">
-                {loading
-                  ? Array.from({ length: 2 }).map((_, i) => (
-                    <div
-                      key={i}
-                      className="border border-slate-700 rounded-xl p-4 bg-slate-800"
-                    >
-                      <Skeleton className="h-4 w-full mb-2" />
-                      <Skeleton className="h-4 w-5/6 mb-2" />
-                      <Skeleton className="h-3 w-32" />
-                    </div>
-                  ))
-                  : group?.pinnedMessages?.length > 0
-                    ? group.pinnedMessages.map((msg) => (
+              {/* Messages */}
+              <div className="h-96 overflow-y-auto space-y-4 pr-2 custom-scroll" ref={chatContainerRef}>
+                {messages.length === 0 ? (
+                  <p className="text-slate-400 text-sm">
+                    No messages yet. Start the conversation.
+                  </p>
+                ) : (
+                  messages.map((msg) => {
+                    const isMe = msg.sender?._id === user?._id;
+
+                    return (
                       <div
                         key={msg._id}
-                        className="border border-amber-500/40 rounded-xl p-4 bg-slate-800"
+                        className={`flex ${isMe ? "justify-end" : "justify-start"}`}
                       >
-                        <p>{msg.text}</p>
-                        <p className="text-sm text-slate-400 mt-2">
-                          {msg.author} • {msg.time}
-                        </p>
-                      </div>
-                    ))
-                    : (
-                      <p className="text-slate-400">No pinned messages</p>
-                    )}
-              </div>
-            </section>
+                        <div
+                          className={`max-w-sm px-4 py-3 rounded-2xl shadow-md transition ${isMe
+                            ? "bg-indigo-600 text-white rounded-br-none"
+                            : "bg-slate-800 border border-slate-700 text-slate-200 rounded-bl-none"
+                            }`}
+                        >
+                          {!isMe && (
+                            <p className="text-xs text-indigo-400 font-medium mb-1">
+                              {msg.sender?.name}
+                            </p>
+                          )}
 
-            {/* -------- Upcoming Sessions -------- */}
-            <section className="bg-slate-900 border border-slate-800 rounded-2xl p-6 shadow-lg">
-              <h3 className="text-xl font-semibold mb-6">
-                Upcoming Sessions
-              </h3>
-
-              <div className="space-y-4">
-                {loading
-                  ? Array.from({ length: 3 }).map((_, i) => (
-                    <div
-                      key={i}
-                      className="border border-slate-700 rounded-xl p-4 bg-slate-800"
-                    >
-                      <Skeleton className="h-4 w-48 mb-2" />
-                      <Skeleton className="h-3 w-32" />
-                    </div>
-                  ))
-                  : group?.sessions?.length > 0
-                    ? group.sessions.map((session) => (
-                      <div
-                        key={session._id}
-                        className="border border-slate-700 hover:border-indigo-500 transition rounded-xl p-4 bg-slate-800 flex justify-between items-center"
-                      >
-                        <div>
-                          <p className="font-medium">
-                            {session.title}
+                          <p className="text-sm leading-relaxed break-words">
+                            {msg.text}
                           </p>
-                          <p className="text-sm text-slate-400">
-                            {session.date} • {session.time}
+
+                          <p className="text-[10px] text-slate-400 mt-2 text-right">
+                            {new Date(msg.createdAt).toLocaleTimeString([], {
+                              hour: "2-digit",
+                              minute: "2-digit",
+                            })}
                           </p>
                         </div>
-                        <span className="text-xs px-3 py-1 rounded-full bg-indigo-500/20 text-indigo-300">
-                          Study Session
-                        </span>
                       </div>
-                    ))
-                    : (
-                      <p className="text-slate-400">No sessions scheduled</p>
-                    )}
+                    );
+                  })
+                )}
+
+                {/* <div ref={bottomRef} /> */}
+              </div>
+
+              {/* Input */}
+              <div className="mt-6 flex gap-3">
+                <input
+                  type="text"
+                  value={newMessage}
+                  onChange={(e) => setNewMessage(e.target.value)}
+                  onKeyDown={(e) => e.key === "Enter" && sendMessage()}
+                  className="flex-1 bg-slate-800 border border-slate-700 rounded-xl px-4 py-3 text-sm focus:outline-none focus:border-indigo-500 transition"
+                  placeholder="Type your message..."
+                />
+
+                <button
+                  onClick={sendMessage}
+                  className="px-6 py-3 bg-indigo-600 hover:bg-indigo-500 rounded-xl text-sm font-medium transition shadow-md"
+                >
+                  Send
+                </button>
               </div>
             </section>
           </div>
