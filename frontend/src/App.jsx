@@ -10,10 +10,9 @@ import CreateGroup from './components/CreateGroup'
 import FindGroups from './components/FindGroups'
 import GroupPage from './pages/group/GroupPage'
 import AdminHome from './pages/AdminHome'
-import { io } from 'socket.io-client'
+import AdminRoutes from './Utils/AdminRoutes'
 
 function App() {
-  io({ autoConnect: false })
   return (
     <>
       <AuthProvider>

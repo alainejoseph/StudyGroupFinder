@@ -1,16 +1,19 @@
 import {
   Users,
   Calendar,
+  Group,
 } from "lucide-react";
 import Sidebar from "../../components/Sidebar";
 import TopCards from "./TopCards";
 import { AuthContext } from "../../contexts/AuthContext";
 import { useContext, useEffect, useState } from "react";
 import axios from "axios";
+import { useNavigate } from "react-router-dom";
 
 export default function Home() {
   const { user } = useContext(AuthContext)
   const [joinedGroups, setJoinedGroups] = useState([])
+  const navigate = useNavigate()
   useEffect(() => {
     if (!user._id) {
       return
@@ -60,6 +63,9 @@ export default function Home() {
                 <StudyGroupCard
                   key={item._id}
                   title={item.groupName}
+                  category={item.subject}
+                  members={item.members.length}
+                  handleClick={() => { navigate(`/group/${item._id}`) }}
                 />
               ))
             )}
@@ -122,11 +128,11 @@ export default function Home() {
 
 
 
-function StudyGroupCard({ title, category, time, members, updates }) {
+function StudyGroupCard({ title, category, time, members, updates, handleClick }) {
   return (
-    <div className="bg-[#1e2530]/40 border border-gray-800 rounded-xl p-5 mb-4 hover:border-gray-700 transition">
-      <div className="flex justify-between items-start mb-3">
-        <div>
+    <div onClick={handleClick} className="bg-[#1e2530]/40 border border-gray-800 rounded-xl p-5 mb-4 hover:border-gray-700 transition">
+      <div className="flex justify-between items-start mb-3" >
+        <div >
           <div className="flex items-center gap-2">
             <h4 className="font-semibold text-lg">{title}</h4>
             {updates && (
@@ -135,13 +141,13 @@ function StudyGroupCard({ title, category, time, members, updates }) {
               </span>
             )}
           </div>
-          {/* <p className="text-gray-500 text-sm">{category}</p> */}
+          <p className="text-gray-500 text-sm">{category}</p>
         </div>
 
-        {/* <div className="flex items-center text-gray-400 text-sm"> */}
-        {/*   <Users size={16} className="mr-1" /> */}
-        {/*   {members} */}
-        {/* </div> */}
+        <div className="flex items-center text-gray-400 text-sm">
+          <Users size={16} className="mr-1" />
+          {members}
+        </div>
       </div>
 
       {/* <div className="flex items-center text-gray-400 text-xs"> */}

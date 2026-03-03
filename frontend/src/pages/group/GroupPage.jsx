@@ -1,12 +1,13 @@
 import React, { useContext, useEffect, useLayoutEffect, useRef, useState } from "react";
 import { MessageCircle, Users, Calendar } from "lucide-react";
-import { useLocation, useParams } from "react-router-dom";
+import { useLocation, useNavigate, useParams } from "react-router-dom";
 import Sidebar from "../../components/Sidebar";
 import axios from "axios";
 import { enqueueSnackbar } from "notistack";
 
 import { io } from "socket.io-client";
 import { AuthContext } from "../../contexts/AuthContext";
+import ConfirmModal from "../../components/ConfirmModal";
 
 const socket = io(import.meta.env.VITE_BACKEND_URL, {
   withCredentials: true,
@@ -30,13 +31,16 @@ export default function StudyGroupPage() {
   const location = useLocation();
   const { user } = useContext(AuthContext)
   const { groupId } = useParams()
+  const navigate = useNavigate()
   console.log(groupId)
 
   const [group, setGroup] = useState(null);
   const [loading, setLoading] = useState(true);
+  const [open, setOpen] = useState(false)
 
   const [messages, setMessages] = useState([]);
   const chatContainerRef = useRef(null);
+  const bottomRef = useRef(null)
   const [newMessage, setNewMessage] = useState("");
 
 
@@ -74,7 +78,14 @@ export default function StudyGroupPage() {
   useEffect(() => {
     if (!groupId) return;
 
+    // leave previous group
+    socket.emit("leaveGroup", { groupId: socket.currentGroup });
+
+    // join new group
     socket.emit("joinGroup", { groupId });
+
+    // store current group on socket instance
+    socket.currentGroup = groupId;
 
     axios
       .get(`${BACKEND}/groups/${groupId}/messages`, {
@@ -82,12 +93,14 @@ export default function StudyGroupPage() {
       })
       .then((res) => setMessages(res.data));
 
-    socket.on("receiveMessage", (message) => {
+    const handleReceive = (message) => {
       setMessages((prev) => [...prev, message]);
-    });
+    };
+
+    socket.on("receiveMessage", handleReceive);
 
     return () => {
-      socket.off("receiveMessage");
+      socket.off("receiveMessage", handleReceive);
     };
   }, [groupId]);
 
@@ -102,6 +115,54 @@ export default function StudyGroupPage() {
 
     setNewMessage("");
   };
+  const handleFileUpload = async (e) => {
+    const file = e.target.files[0];
+
+    const formData = new FormData();
+    formData.append("file", file);
+
+    try {
+      await axios.post(
+        `${BACKEND}/groups/${groupId}/upload`,
+        formData,
+        {
+          withCredentials: true
+        }
+      );
+
+      enqueueSnackbar("File uploaded successfully", { variant: "success" });
+    } catch (err) {
+      enqueueSnackbar(
+        err.response?.data?.message || "Upload failed",
+        { variant: "error" }
+      );
+    }
+  };
+
+
+  function handleConfirm() {
+    console.log("hello from modal Its workinng")
+    axios.post(`${import.meta.env.VITE_BACKEND_URL}/groups/leave`,
+      { groupId },
+      { withCredentials: true })
+      .then((res) => {
+        enqueueSnackbar("You’ve left the group.",
+          {
+            variant: "success",
+            anchorOrigin: {
+              horizontal: "right",
+              vertical: "bottom"
+            }
+          })
+        navigate("/")
+      }).catch(() => {
+        enqueueSnackbar("Error Leaving group try again after refresh", { variant: "error", anchorOrigin: { horizontal: "right", vertical: "bottom" } })
+      })
+      .finally(() => {
+        setOpen(false)
+      })
+  }
+
 
   return (
     <div className="min-h-screen bg-slate-950 text-white flex">
@@ -109,6 +170,14 @@ export default function StudyGroupPage() {
 
       <main className="flex-1 p-4 md:p-8 space-y-8">
         {/* ================= HERO ================= */}
+        <ConfirmModal
+          open={open}
+          onClose={() => setOpen(false)}
+          onConfirm={handleConfirm}
+          title={"Exit Group"}
+          desc={"You will no longer have access to group messages and updates. You can request to join again later."}
+          buttonName={"Leave"}
+        />
         <div className="rounded-2xl p-6 md:p-10 bg-gradient-to-r from-indigo-600 to-purple-600 shadow-xl">
           <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-6">
             <div className="flex-1">
@@ -161,10 +230,12 @@ export default function StudyGroupPage() {
                 </>
               ) : (
                 <>
-                  <button className="flex items-center gap-2 px-5 py-2 bg-white/20 hover:bg-white/30 rounded-xl backdrop-blur transition">
+                  <button onClick={() => {
+                    bottomRef.current.scrollIntoView()
+                  }} className="flex items-center gap-2 px-5 py-2 bg-white/20 hover:bg-white/30 rounded-xl backdrop-blur transition">
                     <MessageCircle size={18} /> Open Chat
                   </button>
-                  <button className="px-5 py-2 bg-slate-900 hover:bg-slate-800 rounded-xl transition">
+                  <button onClick={() => setOpen(true)} className="px-5 py-2 bg-slate-900 hover:bg-slate-800 rounded-xl transition">
                     Leave Group
                   </button>
                 </>
@@ -262,7 +333,7 @@ export default function StudyGroupPage() {
                   })
                 )}
 
-                {/* <div ref={bottomRef} /> */}
+                <div ref={bottomRef} />
               </div>
 
               {/* Input */}
@@ -282,6 +353,8 @@ export default function StudyGroupPage() {
                 >
                   Send
                 </button>
+                <input type="file" onChange={handleFileUpload} />
+
               </div>
             </section>
           </div>

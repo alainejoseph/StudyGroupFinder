@@ -19,8 +19,16 @@ const initSocket = (server) => {
 
     // Join group room
     socket.on("joinGroup", ({ groupId }) => {
+      console.log("join group", groupId)
       socket.join(groupId);
     });
+
+    socket.on("leaveGroup", ({ groupId }) => {
+      console.log("leaving group", groupId)
+      socket.leave(groupId);
+    });
+
+
 
     // Handle message sending
     socket.on("sendMessage", async ({ groupId, userId, text }) => {
