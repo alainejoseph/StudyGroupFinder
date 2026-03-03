@@ -33,9 +33,9 @@ app.use(session({
   }),
   cookie: {
     maxAge: 1000 * 60 * 10,
-    secure: process.env.mode === "production",
-    httpOnly: true,
-    sameSite: "none"
+    // secure: process.env.mode === "production",
+    // httpOnly: true,
+    // sameSite: "lax"
   },
   resave: false,
   saveUninitialized: false
@@ -43,7 +43,7 @@ app.use(session({
 
 
 app.use('/', indexRouter);
-app.use('/users', usersRouter);
+app.use('/admin', usersRouter);
 app.use('/groups', groupRouter);
 
 module.exports = app;

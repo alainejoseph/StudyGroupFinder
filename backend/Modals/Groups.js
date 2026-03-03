@@ -36,6 +36,11 @@ const groupSchema = new mongoose.Schema({
     type: String,
     enum: ["approved", "pending", "rejected"],
     default: "pending"
+  },
+
+  isLocked: {
+    type: Boolean,
+    default: false
   }
 
 }, { timestamps: true });
