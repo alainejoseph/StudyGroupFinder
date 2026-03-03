@@ -43,7 +43,7 @@ app.use(session({
 
 
 app.use('/', indexRouter);
-app.use('/users', usersRouter);
+app.use('/admin', usersRouter);
 app.use('/groups', groupRouter);
 
 module.exports = app;

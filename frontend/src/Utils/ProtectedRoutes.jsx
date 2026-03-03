@@ -15,7 +15,7 @@ const ProtectedRoutes = () => {
       .catch((err) => {
         console.error("protectError", err)
         setUser(null);
-        setIsLoggedIn(false);
+        setIsLoggedIn(true);
       })
       .finally(() => {
         setLoading(false)

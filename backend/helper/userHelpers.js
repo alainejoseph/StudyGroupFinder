@@ -43,7 +43,7 @@ module.exports = {
 
         const groups = await Groups.find({
           _id: { $in: user.groupsJoined }
-        }).select("groupName subject description");
+        }).select("groupName subject description members");
 
         resolve(groups);
 

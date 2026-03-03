@@ -6,6 +6,11 @@ var auth = require("../middleware/auth");
 const Groups = require("../Modals/Groups");
 var mongoose = require("mongoose");
 const Message = require("../Modals/Message");
+const fs = require("fs");
+const path = require("path");
+
+const upload = require("../middleware/upload.js");
+const scanFile = require("../utils/clamScanner.js");
 /* ================= CREATE GROUP ================= */
 router.post("/create", async (req, res) => {
   try {
@@ -123,4 +128,66 @@ router.get("/:id", auth, async (req, res) => {
     res.status(500).json({ msg: err.message })
   }
 })
+
+router.post("/leave", auth, async (req, res) => {
+  try {
+    const { groupId } = req.body
+    let userId = req.session.user
+    let leaveGroup = await Groups.updateOne({
+      _id: groupId
+    },
+      {
+        $pull: { members: userId }
+      })
+    await Users.updateOne(
+      { _id: userId },
+      { $pull: { groupsJoined: groupId } }
+    )
+    console.log("leaving from group", leaveGroup);
+    res.status(200).json({ status: true, msg: "You Have successfully left the group" })
+
+  }
+  catch (error) {
+    res.status(400).json({ status: false, msg: error })
+  }
+})
+
+router.post(
+  "/:groupId/upload",
+  upload.single("file"),
+  async (req, res) => {
+    try {
+      if (!req.file) {
+        return res.status(400).json({ message: "No file uploaded" });
+      }
+
+      const filePath = req.file.path;
+
+      const scanResult = await scanFile(filePath);
+
+      if (scanResult.includes("FOUND")) {
+        fs.unlinkSync(filePath); // delete infected file
+        return res.status(400).json({
+          message: "File contains malware and was rejected",
+        });
+      }
+
+      // Move file to permanent folder
+      const finalPath = path.join(
+        "uploads/groupFiles",
+        req.file.filename
+      );
+
+      fs.renameSync(filePath, finalPath);
+
+      res.status(200).json({
+        message: "File uploaded successfully",
+        filename: req.file.filename,
+      });
+    } catch (err) {
+      console.error(err);
+      res.status(500).json({ message: "Upload failed" });
+    }
+  }
+);
 module.exports = router;

@@ -122,4 +122,16 @@ router.post("/logout", (req, res) => {
   });
 });
 
+//================ REPORT BY USER ==============================
+
+router.post("/reports", auth, async (req, res) => {
+  const report = await Report.create({
+    reportedBy: req.user.id,
+    targetType: req.body.targetType,
+    targetId: req.body.targetId,
+    reason: req.body.reason
+  });
+  res.json(report);
+});
+
 module.exports = router;
