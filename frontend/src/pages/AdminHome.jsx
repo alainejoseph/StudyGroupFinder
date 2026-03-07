@@ -109,10 +109,10 @@ export default function AdminHome() {
     fetchStats()
   }, [])
 
-  const fetchStats = () => {
+  const fetchStats = async () => {
     try {
-      const res = axios.get(`${BACKEND}/admin/stats`, { withCredentials: true })
-      console.log("stats\n", res.data)
+      const res = await axios.get(`${BACKEND}/admin/stats`, { withCredentials: true })
+      console.log("stats\n", res)
       setStat(res.data || { users: 0, groups: 0, reports: 0 })
     }
     catch (err) {
